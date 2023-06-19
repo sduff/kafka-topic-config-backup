@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+
+import re, os
+
+kafka_cli = "docker exec -it broker kafka-topics" # or point to your local kafka-topic binary
+bootstrap = "broker:9092"
+
+topic = re.compile("^Topic:\s+(?P<t>\S+)\s+TopicId:\s+(?P<tid>\S+)\s+PartitionCount:\s+(?P<pc>\S+)\s+ReplicationFactor:\s+(?P<rf>\S+)\s+Configs:\s*(?P<c>.*)$")
+
+with open('topic-config-backup') as f:
+    for l in f:
+        l = l.rstrip()
+        m = topic.match(l)
+        if m:
+            t  = m.group('t')
+            pc = m.group('pc')
+            rf = m.group('rf')
+            cmd = f"{kafka_cli} --bootstrap-server {bootstrap} --topic {t} --create --partitions {pc} --replication-factor {rf} "
+
+            # Configs
+            # Most configs are key=value, where some values contain a comma -- how troublesome!
+            # Iterate through the array, if there are values that don't contain an =, join it with the previous value
+            input_cfg = m.group('c').split(',')
+            output_cfg = []
+            for c in input_cfg:
+                if '=' in c:
+                    output_cfg.append(c)
+                elif len(c) > 0:
+                    output_cfg[-1] = f"{output_cfg[-1]},{c}"
+
+            for c in output_cfg:
+                cmd = f"{cmd} --config {c}"
+
+            if not t.startswith('_'):
+                print("Creating topic ",t," with command: ", cmd)
+                os.system(cmd)
+            else:
+                print("Skipping internal topic, ", t)

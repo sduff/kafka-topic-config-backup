@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# In my environment, I am using docker to run the kafka-topics command
+# Change this to point to the kafka-topics CLI command and the correct broker address
+docker exec -it broker kafka-topics --bootstrap-server broker:9092 --describe > topic-config-backup
